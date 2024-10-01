@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import ForgeReconciler, { Form, Button, Text, Select, CheckboxGroup, Modal, ModalBody, ModalTransition, ModalTitle, ModalFooter, ModalHeader, Inline, FormSection, Label, Textfield, RequiredAsterisk,HelperMessage } from '@forge/react';
-import { invoke } from '@forge/bridge';
+import { invoke, router } from '@forge/bridge';
+import ForgeReconciler, { Button, CheckboxGroup, Form, FormSection, Inline, Modal, ModalBody, ModalFooter, ModalHeader, ModalTitle, ModalTransition, Select, Text, Textfield } from '@forge/react';
+import React, { useEffect, useState } from 'react';
 
 const AdminPanel = () => {
   const [projects, setProjects] = useState([]);
@@ -11,6 +11,8 @@ const AdminPanel = () => {
   const [isConfigurationModalOpen, setIsConfigurationModalOpen] = useState(false);
   const [selectedConfiguration, setSelectedConfiguration] = useState(null);
   const [configurationName, setConfigurationName] = useState(null);
+  const [transitionIdDeny, setIdDenyButton] = useState(null);
+  const [statuses, setStatuses] = useState([{statusName: '', transitionId:''}]);
 
   const openConfigurationModal = () => setIsConfigurationModalOpen(true);
   
@@ -43,6 +45,8 @@ const AdminPanel = () => {
         projectId: conf.projectId,
         name: conf.projectName,
         issueTypeIds: conf.issueTypeIds || [],
+        denyTransitionId: conf.denyTransitionId,
+        statusesConfiguration: conf.statusesConfiguration,
       }));
       setConfiguration(configurations);
     } catch (error) {
@@ -77,8 +81,11 @@ const AdminPanel = () => {
         projectId: selectedProject.value,
         projectName: selectedProject.label,
         issueTypeIds: selectedIssueTypes,
-        configurationName: configurationName
+        configurationName: configurationName,
+        denyTransitionId: transitionIdDeny,
+        statusesConfiguration: statuses,
       });
+      router.reload();
     } catch (error) {
       console.error('Error saving configuration:', error);
     }
@@ -90,8 +97,10 @@ const AdminPanel = () => {
     if (config) {
       setSelectedProject({ label: config.name, value: config.projectId });
       setSelectedIssueTypes(config.issueTypeIds);
-      setSelectedConfiguration(confId)
-      setConfigurationName(config.configutaionName)
+      setSelectedConfiguration(confId);
+      setConfigurationName(config.configutaionName);
+      setIdDenyButton(config.denyTransitionId);
+      setStatuses(config.statusesConfiguration);
       openConfigurationModal();
     }
   };
@@ -99,6 +108,7 @@ const AdminPanel = () => {
   const handleDeleteConfiguration = async (confId) =>{
     try{
         await invoke('removeConfiguration',{id:confId})
+        router.reload();
     }catch{
       console.error('Error removing configuration:', error);
     }
@@ -107,6 +117,17 @@ const AdminPanel = () => {
   const handleConfigutationName = (e)=> {
     setConfigurationName(e.target.value)
   }
+
+  const handeIdDenyButton = (e)=> {
+    setIdDenyButton(e.target.value);
+  }
+
+  const handleStatusChange = (index, field, value) => {
+    const updatedStatuses = [...statuses];
+    updatedStatuses[index][field] = value; 
+    setStatuses(updatedStatuses);
+  };
+
 
   return (
     <>
@@ -148,6 +169,20 @@ const AdminPanel = () => {
                   options={projects}
                   value={selectedProject}
                 />
+
+
+                <Text> Transition ID for deny button </Text>
+                <Textfield onChange={handeIdDenyButton} value={transitionIdDeny}/>
+
+                {statuses.length > 0 && statuses.map((status,i)=>(
+                  <>
+                  <Text>Status Name</Text>
+                  <Textfield  value={status.statusName} onChange={(e) => handleStatusChange(i, 'statusName', e.target.value)} />
+                  <Text>Transition ID</Text>
+                 <Textfield  value={status.transitionId}  onChange={(e) => handleStatusChange(i, 'transitionId', e.target.value)} />
+                  </>
+                ))}
+      
 
                 {issueTypes.length > 0 && (
                   <>

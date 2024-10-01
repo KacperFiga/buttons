@@ -7,18 +7,18 @@ const resolver = new Resolver();
 
 resolver.define('saveConfiguration', async (req) => {
   const uniqueId = uuidv4();
-  const { id, projectId, issueTypeIds, projectName, configurationName } = req.payload;
+  const { id, projectId, issueTypeIds, projectName, configurationName, denyTransitionId, statusesConfiguration } = req.payload;
 
   try {
     const currentConfig = await storage.get('appConfiguration') || [];
     if(id){
       const configIndex = currentConfig.findIndex(config => config.id === id);
       if (configIndex !== -1) {
-        currentConfig[configIndex] = { id, projectId, issueTypeIds, projectName, configurationName };
+        currentConfig[configIndex] = { id, projectId, issueTypeIds, projectName, configurationName, denyTransitionId, statusesConfiguration};
         await storage.set('appConfiguration', currentConfig);
       }
     }else{
-      const updatedConfig = [...currentConfig, { id: uniqueId, projectId, issueTypeIds, projectName, configurationName }];
+      const updatedConfig = [...currentConfig, { id: uniqueId, projectId, issueTypeIds, projectName, configurationName, denyTransitionId: denyTransitionId, statusesConfiguration }];
       await storage.set('appConfiguration', updatedConfig);
   
       return { message:'Configuration saved' };
@@ -41,19 +41,6 @@ resolver.define('getAppVisibility', async () => {
   }
 });
 
-resolver.define('getIssueStatus', async ({issueKey}) => {
-  const response = await api.asApp().requestJira(route`/rest/api/3/issue/${issueKey}?fields=status`);
-  
-  if (!response.ok) {
-    console.log(`Error fetching issue: ${response.statusText}`);
-    throw new Error(`Error fetching issue: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  
-  const currentStatus = data.fields.status.name;
-  return currentStatus;
-});
 
 resolver.define('removeConfiguration', async (req) => {
   const { id } = req.payload;
@@ -133,4 +120,12 @@ resolver.define('getIssueTypes', async (req) => {
   }
 });
 
+
+resolver.define('getIssueDetails', async (req) => {
+  const {issueKey} = req.payload;
+  const response = await api.asApp().requestJira(route`/rest/api/3/issue/${issueKey}`);
+  const data = await response.json();
+  const status = data.fields.status;
+  return status;
+})
 export const handler = resolver.getDefinitions();
